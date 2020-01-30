@@ -3,18 +3,22 @@ package com.mygdx.game;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;
-import com.badlogic.gdx.assets.loaders.ModelLoader;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
-import com.badlogic.gdx.graphics.g3d.loader.ObjLoader;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
+import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.utils.Array;
+
 
 public class MyGdxGame extends ApplicationAdapter {
 	public PerspectiveCamera cam;
@@ -25,6 +29,18 @@ public class MyGdxGame extends ApplicationAdapter {
 	public Environment environment;
 	public boolean loading;
 
+	public Array<ModelInstance> blocks = new Array<ModelInstance>();
+	public Array<ModelInstance> invaders = new Array<ModelInstance>();
+	public ModelInstance ship;
+	public ModelInstance space;
+
+	protected Stage stage;
+	protected Label label;
+	protected BitmapFont font;
+	protected StringBuilder stringBuilder;
+
+	private int visibleCount;
+
 	@Override
 	public void create () {
 		modelBatch = new ModelBatch();
@@ -33,7 +49,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f));
 
 		cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		cam.position.set(4f, 4f, 4f);
+		cam.position.set(0f, 7f, 10f);
 		cam.lookAt(0,0,0);
 		cam.near = 1f;
 		cam.far = 300f;
@@ -43,19 +59,44 @@ public class MyGdxGame extends ApplicationAdapter {
 		Gdx.input.setInputProcessor(camController);
 
 		assets = new AssetManager();
-		assets.load("ship.obj", Model.class);
+		assets.load("ship.g3db", Model.class);
+		assets.load("block.obj", Model.class);
+		assets.load("invader.obj", Model.class);
+		assets.load("spacesphere.obj", Model.class);
 		loading = true;
+
+		stage = new Stage();
+		font = new BitmapFont();
+		label = new Label(" ", new Label.LabelStyle(font, Color.WHITE));
+		stage.addActor(label);
+		stringBuilder = new StringBuilder();
 	}
 
 	private void doneLoading() {
-		Model ship = assets.get("ship.obj", Model.class);
+		ship = new ModelInstance(assets.get("ship.g3db", Model.class));
+		ship.transform.setToRotation(Vector3.Y, 180).trn(0, 0, 6f);
+		instances.add(ship);
+
+		Model blockModel = assets.get("block.obj", Model.class);
 		for (float x = -5f; x <= 5f; x += 2f) {
-			for (float z = -5f; z <= 5f; z += 2f) {
-				ModelInstance shipInstance = new ModelInstance(ship);
-				shipInstance.transform.setToTranslation(x, 0, z);
-				instances.add(shipInstance);
+			ModelInstance block = new ModelInstance(blockModel);
+			block.transform.setToTranslation(x, 0, 3f);
+			instances.add(block);
+			blocks.add(block);
+		}
+
+		Model invaderModel = assets.get("invader.obj", Model.class);
+		for (float x = -5f; x <= 5f; x += 2f) {
+			for (float z = -8f; z <= 0f; z += 2f) {
+				ModelInstance invader = new ModelInstance(invaderModel);
+				invader.transform.setToTranslation(x, 0, z);
+				instances.add(invader);
+				invaders.add(invader);
 			}
 		}
+
+		space = new ModelInstance(assets.get("spacesphere.obj", Model.class));
+
 		loading = false;
 	}
 
@@ -69,8 +110,26 @@ public class MyGdxGame extends ApplicationAdapter {
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
 		modelBatch.begin(cam);
-		modelBatch.render(instances, environment);
+		visibleCount = 0;
+		for (final ModelInstance instance : instances) {
+			if (isVisible(cam, instance)) {
+				modelBatch.render(instance, environment);
+				visibleCount++;
+			}
+		}
+		if (space != null)
+			modelBatch.render(space);
 		modelBatch.end();
+
+		stringBuilder.setLength(0);
+		stringBuilder.append(" FPS: ").append(Gdx.graphics.getFramesPerSecond());
+		stringBuilder.append(" Visible: ").append(visibleCount);
+		label.setText(stringBuilder);
+		stage.draw();
+	}
+
+	private boolean isVisible(PerspectiveCamera cam, ModelInstance instance) {
+		return true; // FIXME: Implement frustum culling
 	}
 
 	@Override
@@ -80,12 +139,16 @@ public class MyGdxGame extends ApplicationAdapter {
 		assets.dispose();
 	}
 
+	@Override
 	public void resume () {
 	}
 
+	@Override
 	public void resize (int width, int height) {
+		stage.getViewport().update(width, height, true);
 	}
 
+	@Override
 	public void pause () {
 	}
 }
