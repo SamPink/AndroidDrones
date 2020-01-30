@@ -2,6 +2,7 @@ package com.mygdx.game;
 
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.assets.AssetManager;
@@ -18,8 +19,6 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
-import com.badlogic.gdx.math.Intersector;
-import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.math.collision.Ray;
@@ -72,7 +71,7 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
 
 		//creates game camera and view position
 		cam = new PerspectiveCamera(50, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		cam.position.set(0f, 7f, 10f);
+		cam.position.set(7f, 7f, 10f);
 		cam.lookAt(0,0,0);
 		cam.near = 1f;
 		cam.far = 300f;
@@ -99,7 +98,6 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
         selectionMaterial = new Material();
         selectionMaterial.set(ColorAttribute.createDiffuse(Color.ORANGE));
         originalMaterial = new Material();
-
 	}
 
 	/**
@@ -108,6 +106,8 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
 	 */
     private BoundingBox bounds = new BoundingBox();
     private void doneLoading () {
+
+
         Model model = assets.get("invaderscene.g3db", Model.class);
         for (int i = 0; i < model.nodes.size; i++) {
             String id = model.nodes.get(i).id;
@@ -151,7 +151,7 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
     @Override
 	public void render () {
 		if (loading && assets.update()) //true if objects are not in memory or is objects have changed
-			doneLoading();//load into memory
+        doneLoading();//load into memory
 		camController.update();//update the view
 
 		//clear canvas
@@ -175,6 +175,7 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
 		stringBuilder.append(" FPS: ").append(Gdx.graphics.getFramesPerSecond());
 		stringBuilder.append(" Visible: ").append(visibleCount);
         stringBuilder.append(" Selected: ").append(selected);
+        //stringBuilder.append("    Position ").append();
 		label.setText(stringBuilder);
 		stage.draw();
 	}
@@ -227,6 +228,18 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
         return false;
     }
 
+    @Override
+    public boolean keyDown(int keycode) {
+        GameObject object = getPlayer();
+
+        if(keycode == Input.Keys.UP) object.move(0, 0, 1);
+        if(keycode == Input.Keys.DOWN) object.move(0, 0, -1);
+        if(keycode == Input.Keys.LEFT) object.move(0, 1, 0);
+        if(keycode == Input.Keys.RIGHT) object.move(0, -1, 0);
+
+        return super.keyDown(keycode);
+    }
+
     public void setSelected (int value) {
         if (selected == value) return;
         if (selected >= 0) {
@@ -257,5 +270,9 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
             }
         }
         return result;
+    }
+
+    public GameObject getPlayer(){
+        return instances.get(0);
     }
 }

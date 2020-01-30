@@ -3,8 +3,6 @@ package com.mygdx.game;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.math.collision.Ray;
 
 public class GameObject extends ModelInstance {
@@ -22,5 +20,10 @@ public class GameObject extends ModelInstance {
      * object and the point on the ray closest to this object when there is intersection. */
     public float intersects(Ray ray) {
         return shape == null ? -1f : shape.intersects(transform, ray);
+    }
+
+    public void move(int x, int y, int z){
+        System.out.println(this.transform.toString());
+        this.transform.translate(x,y,z);
     }
 }
