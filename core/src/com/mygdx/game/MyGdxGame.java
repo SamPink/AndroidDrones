@@ -1,6 +1,5 @@
 package com.mygdx.game;
 
-import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
@@ -20,7 +19,9 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
 import com.badlogic.gdx.math.Intersector;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.math.collision.Ray;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -36,9 +37,14 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
 	public Environment environment;
 	public boolean loading; // loading flag used to determine if asset is in memory
 
-	public Array<GameObject> blocks = new Array<>();
-	public ModelInstance block;
-	public ModelInstance space;
+    protected Array<GameObject> blocks = new Array<GameObject>();
+    protected Array<GameObject> invaders = new Array<GameObject>();
+    protected ModelInstance ship;
+    protected ModelInstance space;
+
+    protected Shape blockShape;
+    protected Shape invaderShape;
+    protected Shape shipShape;
 
 	protected Stage stage;
 	protected Label label;
@@ -82,6 +88,7 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
 		assets.load("block.obj", Model.class);
 		assets.load("invader.obj", Model.class);
 		assets.load("spacesphere.obj", Model.class);
+		assets.load("invaderscene.g3db",Model.class);
 		loading = true;
 
 		stage = new Stage(); //HUD element
@@ -99,19 +106,49 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
 	 * loads assets into memory
 	 * spawning objects
 	 */
-	private void doneLoading() {
-        Model model = assets.get("ship.g3db", Model.class);
-        GameObject ship = new GameObject(model, model.nodes.get(0).id, true);
-		ship.transform.setToRotation(Vector3.Y, 180).trn(0, 0, 6f);
-		instances.add(ship);
+    private BoundingBox bounds = new BoundingBox();
+    private void doneLoading () {
+        Model model = assets.get("invaderscene.g3db", Model.class);
+        for (int i = 0; i < model.nodes.size; i++) {
+            String id = model.nodes.get(i).id;
+            GameObject instance = new GameObject(model, id, true);
+
+            if (id.equals("space")) {
+                space = instance;
+                continue;
+            }
+
+            instances.add(instance);
+
+            if (id.equals("ship")) {
+                instance.calculateBoundingBox(bounds);
+                shipShape = new Sphere(bounds);
+                instance.shape = shipShape;
+                ship = instance;
+            }
+            else if (id.startsWith("block")) {
+                if (blockShape == null) {
+                    instance.calculateBoundingBox(bounds);
+                    blockShape = new Box(bounds);
+                }
+                instance.shape = blockShape;
+                blocks.add(instance);
+            }
+            else if (id.startsWith("invader")) {
+                if (invaderShape == null) {
+                    instance.calculateBoundingBox(bounds);
+                    invaderShape = new Disk(bounds);
+                }
+                instance.shape = invaderShape;
+                invaders.add(instance);
+            }
+        }
+
+        loading = false;
+    }
 
 
-		space = new ModelInstance(assets.get("spacesphere.obj", Model.class));
-
-		loading = false; //loading is false when objects are in memory
-	}
-
-	@Override
+    @Override
 	public void render () {
 		if (loading && assets.update()) //true if objects are not in memory or is objects have changed
 			doneLoading();//load into memory
@@ -209,25 +246,12 @@ public class MyGdxGame extends InputAdapter implements ApplicationListener  {
 
     public int getObject (int screenX, int screenY) {
         Ray ray = cam.getPickRay(screenX, screenY);
-
         int result = -1;
         float distance = -1;
-
         for (int i = 0; i < instances.size; ++i) {
-            final GameObject instance =  instances.get(i);
-
-            instance.transform.getTranslation(position);
-            position.add(instance.center);
-
-            final float len = ray.direction.dot(position.x-ray.origin.x, position.y-ray.origin.y, position.z-ray.origin.z);
-            if (len < 0f)
-                continue;
-
-            float dist2 = position.dst2(ray.origin.x+ray.direction.x*len, ray.origin.y+ray.direction.y*len, ray.origin.z+ray.direction.z*len);
-            if (distance >= 0f && dist2 > distance)
-                continue;
-
-            if (dist2 <= instance.radius * instance.radius) {
+            final GameObject instance = instances.get(i);
+            float dist2 = instance.intersects(ray);
+            if (dist2 >= 0 && (distance < 0f || dist2 < distance)) {
                 result = i;
                 distance = dist2;
             }
